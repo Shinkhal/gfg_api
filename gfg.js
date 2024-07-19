@@ -2,7 +2,10 @@ const puppeteer = require("puppeteer");
 
 async function getUserData(userName) {
   console.log("Fetching");
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-gpu']
+  });
   const page = await browser.newPage();
   await page.goto(`https://www.geeksforgeeks.org/user/${userName}/`);
  
