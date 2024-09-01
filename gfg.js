@@ -1,62 +1,59 @@
-const puppeteer = require("puppeteer");
+const puppeteer = require('puppeteer');
 
 async function getUserData(userName) {
-  console.log("Fetching");
+  console.log('Fetching');
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-gpu']
   });
   const page = await browser.newPage();
   await page.goto(`https://www.geeksforgeeks.org/user/${userName}/`);
- 
-  // Wait for the required elements to load
-  const selector = ".profilePicSection_head_userRankContainer_rank__abngM";
+
+  // Define selectors based on the provided HTML structure
+  const selectors = {
+    institutionName: '.educationDetails_head_left--text__tgi9I',
+    languages: '.educationDetails_head_right--text__lLOHI',
+    rank: '.educationDetails_head_left_userRankContainer--text__wt81s b',
+    codingScore: '.scoreCard_head_left--text__KZ2S1:nth-of-type(1) + .scoreCard_head_left--score__oSi_x',
+    problemsSolved: '.scoreCard_head_left--text__KZ2S1:nth-of-type(2) + .scoreCard_head_left--score__oSi_x',
+    contestRating: '.scoreCard_head_left--text__KZ2S1:nth-of-type(3) + .scoreCard_head_left--score__oSi_x',
+    solvedProblemsSelector: '.problemNavbar_head_nav--text__UaGCx' // Updated selector for solved problems
+  };
+
   try {
-    await page.waitForSelector(selector, { timeout: 3000 }); // Adjust timeout as needed
+    await page.waitForSelector(selectors.institutionName, { timeout: 5000 });
+
+    const userData = await page.evaluate((selectors) => {
+      const getTextContent = (selector) => document.querySelector(selector)?.textContent?.trim() || 'N/A';
+
+      // Extract the total number of solved problems
+      const problemCategories = document.querySelectorAll(selectors.solvedProblemsSelector);
+      let totalSolved = 0;
+      problemCategories.forEach(category => {
+        const count = parseInt(category.textContent.match(/\d+/)?.[0] || '0');
+        totalSolved += count;
+      });
+
+      return {
+        institutionName: getTextContent(selectors.institutionName),
+        languages: getTextContent(selectors.languages),
+        rank: getTextContent(selectors.rank),
+        codingScore: getTextContent(selectors.codingScore),
+        totalSolvedProblems: totalSolved // Added total solved problems
+      };
+    }, selectors);
+
+    console.log('Fetched');
+    return userData;
   } catch (error) {
-    // console.error(`User ${userName} not found`);
-    await browser.close();
+    console.error('Error fetching data:', error);
     return {
-      "Status":`User ${userName} not found`,
-      "Shinkhal ":"Password is wrong , Try again!"
-    }; 
-  }
-
- 
-  const userData = await page.evaluate(() => {
-    const rank = document
-      .querySelector(".profilePicSection_head_userRankContainer_rank__abngM")
-      .getElementsByTagName("b")[0].innerText;
-    const streak = document.querySelector(
-      ".circularProgressBar_head_mid_streakCnt__MFOF1"
-    ).childNodes[0].textContent;
-    const overallScore = document.querySelector(".scoreCards_head__G_uNQ")
-      .childNodes[0].childNodes[0].childNodes[0].childNodes[1].innerText;
-    const totalSolved = document.querySelector(".scoreCards_head__G_uNQ")
-      .childNodes[1].childNodes[0].childNodes[0].childNodes[1].innerText;
-    const monthlyScore = document.querySelector(".scoreCards_head__G_uNQ")
-      .childNodes[2].childNodes[0].childNodes[0].childNodes[1].innerText;
-    const instituteName = document.querySelector(
-      ".educationDetails_head_left--text__tgi9I"
-    ).innerText;
-    const languages = document.querySelector(
-      ".educationDetails_head_right--text__lLOHI"
-    ).innerText;
-    const problems = document.querySelector(".problemListSection_head__JAiP6");
-    return {
-      instituteName,
-      languages,
-      rank,
-      streak,
-      overallScore,
-      monthlyScore,
-      totalSolved,
+      Status: `User ${userName} not found`,
+      Error: 'Failed to fetch data'
     };
-  });
-
-  // console.log(userData);
-  await browser.close();
-  console.log("Fetched");
-  return userData;
+  } finally {
+    await browser.close();
+  }
 }
+
 module.exports = getUserData;
